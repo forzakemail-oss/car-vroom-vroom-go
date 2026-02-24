@@ -2,38 +2,40 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Car Empire Ultimate</title>
+<title>CAR EMPIRE ULTRA</title>
 <style>
-body { margin:0; overflow:hidden; background:black; font-family:Arial;}
-#hud {
-  position:absolute;
-  top:15px;
-  left:15px;
-  color:white;
-  font-size:16px;
-  background:rgba(0,0,0,0.5);
-  padding:10px;
-  border-radius:10px;
+body { margin:0; overflow:hidden; font-family:Arial; background:black;}
+#hud{
+position:absolute;
+top:15px;
+left:15px;
+color:white;
+background:rgba(0,0,0,0.5);
+padding:15px;
+border-radius:15px;
+backdrop-filter: blur(5px);
 }
-#shopPanel {
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  background:#111;
-  padding:20px;
-  color:white;
-  display:none;
-  border-radius:15px;
+#shop{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+background:#111;
+padding:20px;
+border-radius:20px;
+display:none;
+color:white;
 }
-button {
-  padding:8px 15px;
-  margin:5px;
-  background:#ff3333;
-  border:none;
-  color:white;
-  cursor:pointer;
+button{
+padding:8px 14px;
+margin:5px;
+background:#ff2e2e;
+border:none;
+color:white;
+cursor:pointer;
+border-radius:10px;
 }
+h2{margin-top:0;}
 </style>
 </head>
 <body>
@@ -43,165 +45,216 @@ Money: $<span id="money">10000</span><br>
 Speed: <span id="speed">0</span><br>
 Nitro: <span id="nitro">100</span>%<br>
 Heat: <span id="heat">0</span><br>
-<button onclick="openShop()">Open Shop</button>
+Engine Lv: <span id="engLvl">1</span><br>
+Nitro Lv: <span id="nitLvl">1</span><br>
+<button onclick="openShop()">SHOP</button>
 </div>
 
-<div id="shopPanel">
-<h2>Car Shop</h2>
-<button onclick="upgradeEngine()">Upgrade Engine ($5000)</button>
-<button onclick="upgradeNitro()">Upgrade Nitro ($3000)</button>
+<div id="shop">
+<h2>UPGRADES</h2>
+<button onclick="upgradeEngine()">Engine $5000</button>
+<button onclick="upgradeNitro()">Nitro $3000</button>
 <button onclick="closeShop()">Close</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
-const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x000000, 50, 300);
+/* SCENE */
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x000000,50,400);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2000);
+/* SKY */
+const skyGeo=new THREE.SphereGeometry(1000,32,32);
+const skyMat=new THREE.MeshBasicMaterial({
+color:0x0a0a2a,
+side:THREE.BackSide
+});
+const sky=new THREE.Mesh(skyGeo,skyMat);
+scene.add(sky);
+
+/* CAMERA */
+const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
 camera.position.set(0,8,15);
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
+/* RENDERER */
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.shadowMap.enabled=true;
 document.body.appendChild(renderer.domElement);
 
 /* LIGHTING */
-const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+const hemi=new THREE.HemisphereLight(0xffffff,0x222244,1);
 scene.add(hemi);
 
-const sun = new THREE.DirectionalLight(0xffffff, 1);
-sun.position.set(50,100,50);
-sun.castShadow = true;
+const sun=new THREE.DirectionalLight(0xffffff,1.2);
+sun.position.set(100,200,100);
+sun.castShadow=true;
 scene.add(sun);
 
-/* ROAD */
-const road = new THREE.Mesh(
-  new THREE.PlaneGeometry(2000,2000),
-  new THREE.MeshStandardMaterial({color:0x222222})
+/* GROUND */
+const ground=new THREE.Mesh(
+new THREE.PlaneGeometry(2000,2000),
+new THREE.MeshStandardMaterial({
+color:0x111111,
+roughness:0.8,
+metalness:0.2
+})
 );
-road.rotation.x = -Math.PI/2;
-road.receiveShadow = true;
-scene.add(road);
+ground.rotation.x=-Math.PI/2;
+ground.receiveShadow=true;
+scene.add(ground);
 
 /* BUILDINGS */
-for(let i=0;i<300;i++){
-  const h = Math.random()*60+10;
-  const b = new THREE.Mesh(
-    new THREE.BoxGeometry(10,h,10),
-    new THREE.MeshStandardMaterial({color:0x333333})
-  );
-  b.position.set(
-    (Math.random()-0.5)*1500,
-    h/2,
-    (Math.random()-0.5)*1500
-  );
-  b.castShadow=true;
-  scene.add(b);
+for(let i=0;i<400;i++){
+let h=Math.random()*80+10;
+let b=new THREE.Mesh(
+new THREE.BoxGeometry(10,h,10),
+new THREE.MeshStandardMaterial({
+color:0x222222,
+roughness:0.6,
+metalness:0.4
+})
+);
+b.position.set(
+(Math.random()-0.5)*1800,
+h/2,
+(Math.random()-0.5)*1800
+);
+b.castShadow=true;
+scene.add(b);
 }
 
 /* PLAYER CAR */
-const car = new THREE.Group();
-const body = new THREE.Mesh(
-  new THREE.BoxGeometry(3,1,6),
-  new THREE.MeshStandardMaterial({color:0xff0000})
+const car=new THREE.Group();
+const body=new THREE.Mesh(
+new THREE.BoxGeometry(3,1,6),
+new THREE.MeshStandardMaterial({
+color:0xff0000,
+metalness:0.8,
+roughness:0.2
+})
 );
-body.position.y = 1;
+body.position.y=1;
+body.castShadow=true;
 car.add(body);
 scene.add(car);
 
-/* POLICE */
-const police = new THREE.Mesh(
-  new THREE.BoxGeometry(3,1,6),
-  new THREE.MeshStandardMaterial({color:0x0000ff})
+/* POLICE CAR */
+const police=new THREE.Mesh(
+new THREE.BoxGeometry(3,1,6),
+new THREE.MeshStandardMaterial({
+color:0x0066ff,
+metalness:0.8,
+roughness:0.2
+})
 );
-police.position.set(20,1,20);
+police.position.set(30,1,30);
+police.castShadow=true;
 scene.add(police);
 
-/* GAME VARIABLES */
-let speed = 0;
-let engineLevel = 1;
-let nitroLevel = 1;
-let nitro = 100;
-let money = 10000;
-let heat = 0;
+/* PARTICLES (NITRO FLAMES) */
+const flameGeo=new THREE.SphereGeometry(0.3,8,8);
+const flameMat=new THREE.MeshBasicMaterial({color:0xff6600});
+let flame=new THREE.Mesh(flameGeo,flameMat);
+flame.position.set(0,1,-4);
+car.add(flame);
 
-let keys = {};
+/* VARIABLES */
+let speed=0;
+let drift=0;
+let nitro=100;
+let engineLevel=1;
+let nitroLevel=1;
+let money=10000;
+let heat=0;
+let keys={};
+
 document.addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
 document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
 
 /* SHOP */
-function openShop(){ document.getElementById("shopPanel").style.display="block"; }
-function closeShop(){ document.getElementById("shopPanel").style.display="none"; }
-
+function openShop(){document.getElementById("shop").style.display="block";}
+function closeShop(){document.getElementById("shop").style.display="none";}
 function upgradeEngine(){
-  if(money>=5000){
-    money-=5000;
-    engineLevel++;
-    alert("Engine Level "+engineLevel);
-  }
+if(money>=5000){
+money-=5000;
+engineLevel++;
+}
 }
 function upgradeNitro(){
-  if(money>=3000){
-    money-=3000;
-    nitroLevel++;
-    alert("Nitro Level "+nitroLevel);
-  }
+if(money>=3000){
+money-=3000;
+nitroLevel++;
+}
 }
 
 /* POLICE AI */
 function policeAI(){
-  const distance = car.position.distanceTo(police.position);
-  if(distance<100){
-    heat=5;
-    police.lookAt(car.position);
-    police.translateZ(0.4);
-  } else {
-    heat=0;
-  }
+let dist=car.position.distanceTo(police.position);
+if(dist<200){
+heat=1+Math.floor(dist/40);
+police.lookAt(car.position);
+police.translateZ(0.3+heat*0.1);
+}else{
+heat=0;
+}
 }
 
 /* GAME LOOP */
 function animate(){
-  requestAnimationFrame(animate);
+requestAnimationFrame(animate);
 
-  if(keys["w"]) speed += 0.02*engineLevel;
-  if(keys["s"]) speed -= 0.02;
+/* MOVEMENT */
+if(keys["w"]) speed+=0.02*engineLevel;
+if(keys["s"]) speed-=0.02;
 
-  if(keys[" "] && nitro>0){
-    speed += 0.1*nitroLevel;
-    nitro -= 0.5;
-  } else if(nitro<100){
-    nitro += 0.2;
-  }
+if(keys["a"]) drift=0.05;
+if(keys["d"]) drift=-0.05;
 
-  speed*=0.98;
+car.rotation.y+=drift*speed;
+drift*=0.9;
 
-  if(keys["a"]) car.rotation.y+=0.04;
-  if(keys["d"]) car.rotation.y-=0.04;
+if(keys[" "] && nitro>0){
+speed+=0.15*nitroLevel;
+nitro-=0.7;
+flame.visible=true;
+}else{
+flame.visible=false;
+if(nitro<100) nitro+=0.3;
+}
 
-  car.translateZ(speed);
+speed*=0.98;
+car.translateZ(speed);
 
-  camera.position.x = car.position.x + Math.sin(car.rotation.y)*15;
-  camera.position.z = car.position.z + Math.cos(car.rotation.y)*15;
-  camera.lookAt(car.position);
+/* CAMERA FOLLOW + SHAKE */
+camera.position.x=car.position.x+Math.sin(car.rotation.y)*15;
+camera.position.z=car.position.z+Math.cos(car.rotation.y)*15;
+camera.position.y=8+Math.abs(speed*2);
+camera.lookAt(car.position);
 
-  policeAI();
+/* MONEY GAIN */
+money+=Math.abs(speed*0.05);
 
-  document.getElementById("money").innerText = money;
-  document.getElementById("speed").innerText = Math.abs(speed*200).toFixed(0);
-  document.getElementById("nitro").innerText = nitro.toFixed(0);
-  document.getElementById("heat").innerText = heat;
+/* POLICE */
+policeAI();
 
-  renderer.render(scene,camera);
+/* HUD */
+document.getElementById("money").innerText=Math.floor(money);
+document.getElementById("speed").innerText=Math.floor(Math.abs(speed*200));
+document.getElementById("nitro").innerText=Math.floor(nitro);
+document.getElementById("heat").innerText=heat;
+document.getElementById("engLvl").innerText=engineLevel;
+document.getElementById("nitLvl").innerText=nitroLevel;
+
+renderer.render(scene,camera);
 }
 animate();
 
 window.addEventListener("resize",()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
+camera.aspect=window.innerWidth/window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth,window.innerHeight);
 });
 </script>
 
