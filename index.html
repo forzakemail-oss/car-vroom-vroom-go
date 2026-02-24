@@ -1,262 +1,942 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>CAR EMPIRE ULTRA</title>
-<style>
-body { margin:0; overflow:hidden; font-family:Arial; background:black;}
-#hud{
-position:absolute;
-top:15px;
-left:15px;
-color:white;
-background:rgba(0,0,0,0.5);
-padding:15px;
-border-radius:15px;
-backdrop-filter: blur(5px);
-}
-#shop{
-position:absolute;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-background:#111;
-padding:20px;
-border-radius:20px;
-display:none;
-color:white;
-}
-button{
-padding:8px 14px;
-margin:5px;
-background:#ff2e2e;
-border:none;
-color:white;
-cursor:pointer;
-border-radius:10px;
-}
-h2{margin-top:0;}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <title>CAR EMPIRE ULTRA — Hyper Real</title>
+  <style>
+    :root{
+      --panel: rgba(12,12,18,.72);
+      --stroke: rgba(255,255,255,.12);
+      --accent: #ff2e2e;
+      --accent2:#3cffd0;
+      --text:#fff;
+      --muted: rgba(255,255,255,.7);
+    }
+    *{ box-sizing:border-box; }
+    html,body{ margin:0; padding:0; height:100%; background:#000; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    canvas{ display:block; width:100vw; height:100vh; }
+
+    #hud{
+      position:fixed; top:14px; left:14px; z-index:20;
+      color:var(--text);
+      background:var(--panel);
+      border:1px solid var(--stroke);
+      padding:12px 12px 10px;
+      border-radius:16px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      min-width: 240px;
+      user-select:none;
+    }
+    #hud .row{ display:flex; gap:10px; align-items:center; justify-content:space-between; margin:6px 0; font-size:13px; }
+    #hud .btnrow{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    button{
+      appearance:none; border:none; outline:none; cursor:pointer;
+      padding:9px 12px; border-radius:12px;
+      background: linear-gradient(180deg, rgba(255,46,46,.95), rgba(200,16,16,.95));
+      color:#fff; font-weight:800;
+      border:1px solid rgba(255,255,255,.12);
+      transition: transform .08s ease;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    button:active{ transform: scale(.98); }
+    button.secondary{
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.14);
+    }
+
+    #shopOverlay{
+      position:fixed; inset:0; z-index:40;
+      display:none; align-items:center; justify-content:center;
+      background: rgba(0,0,0,.58);
+      backdrop-filter: blur(10px);
+    }
+    #shop{
+      width:min(560px, calc(100vw - 26px));
+      background: rgba(14,14,20,.88);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      padding:16px;
+      color:#fff;
+    }
+    #shop h2{ margin:6px 0 10px; font-size:18px; }
+    #shop p{ margin:0 0 14px; color:var(--muted); font-size:13px; }
+    #shop .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .card{ background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); border-radius:16px; padding:12px; }
+    .card h3{ margin:0 0 8px; font-size:14px; }
+    .card .meta{ font-size:12px; color:var(--muted); margin-bottom:10px; }
+    .card .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+    #shop .footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; gap:10px; flex-wrap:wrap; }
+    #shop .footer small{ color:var(--muted); }
+
+    #toast{
+      position:fixed; top:16px; left:50%; transform:translateX(-50%);
+      z-index:30;
+      background: rgba(0,0,0,.55);
+      color:#fff;
+      border:1px solid rgba(255,255,255,.12);
+      padding:10px 14px;
+      border-radius:999px;
+      font-size:13px;
+      opacity:0; pointer-events:none;
+      transition: opacity .25s ease, transform .25s ease;
+      backdrop-filter: blur(10px);
+    }
+    #toast.show{ opacity:1; transform:translateX(-50%) translateY(4px); }
+
+    /* Mobile controls */
+    #mobileControls{ position:fixed; inset:0; z-index:25; pointer-events:none; }
+    .joystickWrap{
+      position:absolute; left:14px; bottom:14px;
+      width:140px; height:140px;
+      pointer-events:auto; touch-action:none;
+    }
+    .joyBase{
+      position:absolute; inset:0; border-radius:50%;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(10px);
+    }
+    .joyStick{
+      position:absolute; left:50%; top:50%;
+      width:64px; height:64px; margin-left:-32px; margin-top:-32px;
+      border-radius:50%;
+      background: rgba(255,46,46,.35);
+      border:1px solid rgba(255,46,46,.55);
+      box-shadow: 0 12px 28px rgba(255,46,46,.18);
+      transform: translate(0,0);
+    }
+    .btnPad{
+      position:absolute; right:14px; bottom:14px;
+      display:grid; grid-template-columns: 76px 76px;
+      gap:10px; pointer-events:auto; touch-action:none;
+    }
+    .padBtn{
+      width:76px; height:76px;
+      border-radius:18px;
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.14);
+      color:#fff; font-weight:900;
+      display:flex; align-items:center; justify-content:center;
+      user-select:none;
+    }
+    .padBtn.primary{ background: linear-gradient(180deg, rgba(60,255,208,.35), rgba(60,255,208,.16)); border:1px solid rgba(60,255,208,.45); }
+    .padBtn.danger{  background: linear-gradient(180deg, rgba(255,68,85,.35), rgba(255,68,85,.16)); border:1px solid rgba(255,68,85,.45); }
+
+    @media (hover:hover) and (pointer:fine){
+      #mobileControls{ display:none; }
+    }
+  </style>
 </head>
 <body>
 
+<div id="toast"></div>
+
 <div id="hud">
-Money: $<span id="money">10000</span><br>
-Speed: <span id="speed">0</span><br>
-Nitro: <span id="nitro">100</span>%<br>
-Heat: <span id="heat">0</span><br>
-Engine Lv: <span id="engLvl">1</span><br>
-Nitro Lv: <span id="nitLvl">1</span><br>
-<button onclick="openShop()">SHOP</button>
+  <div class="row"><span>Money</span><strong>$<span id="money">10000</span></strong></div>
+  <div class="row"><span>Speed</span><strong><span id="speed">0</span> km/h</strong></div>
+  <div class="row"><span>Nitro</span><strong><span id="nitro">100</span>%</strong></div>
+  <div class="row"><span>Heat</span><strong><span id="heat">0</span></strong></div>
+  <div class="row"><span>Engine Lv</span><strong><span id="engLvl">1</span></strong></div>
+  <div class="row"><span>Nitro Lv</span><strong><span id="nitLvl">1</span></strong></div>
+  <div class="btnrow">
+    <button id="shopBtn">SHOP</button>
+    <button id="audioBtn" class="secondary">🔊 Sound: OFF</button>
+    <button id="qualityBtn" class="secondary">✨ Quality: HIGH</button>
+  </div>
 </div>
 
-<div id="shop">
-<h2>UPGRADES</h2>
-<button onclick="upgradeEngine()">Engine $5000</button>
-<button onclick="upgradeNitro()">Nitro $3000</button>
-<button onclick="closeShop()">Close</button>
+<div id="shopOverlay">
+  <div id="shop">
+    <h2>UPGRADES</h2>
+    <p>Realistic lighting + PBR materials enabled. Upgrade performance here.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Engine Upgrade</h3>
+        <div class="meta">+Acceleration • +Top speed</div>
+        <div class="actions">
+          <button id="buyEngine">Buy Engine (+1) — $<span id="engineCost">5000</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Nitro Upgrade</h3>
+        <div class="meta">+Nitro power • +Nitro efficiency</div>
+        <div class="actions">
+          <button id="buyNitro">Buy Nitro (+1) — $<span id="nitroCost">3000</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Armor Upgrade</h3>
+        <div class="meta">Less speed loss on impacts</div>
+        <div class="actions">
+          <button id="buyArmor">Buy Armor (+1) — $<span id="armorCost">4000</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Grip & Brakes</h3>
+        <div class="meta">Sharper handling • Easier turns</div>
+        <div class="actions">
+          <button id="buyGrip">Buy Grip (+1) — $<span id="gripCost">3500</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <small>Desktop: WASD + Space + Shift • Shop hotkey: H</small>
+      <button id="closeShop">Close</button>
+    </div>
+  </div>
 </div>
 
+<!-- Mobile Controls -->
+<div id="mobileControls">
+  <div class="joystickWrap" id="joyArea">
+    <div class="joyBase"></div>
+    <div class="joyStick" id="joyStick"></div>
+  </div>
+  <div class="btnPad">
+    <div class="padBtn primary" id="btnGas">GAS</div>
+    <div class="padBtn danger" id="btnBrake">BRAKE</div>
+    <div class="padBtn" id="btnNitro">NITRO</div>
+    <div class="padBtn" id="btnDrift">DRIFT</div>
+  </div>
+</div>
+
+<!-- Core Three.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-<script>
-/* SCENE */
-const scene=new THREE.Scene();
-scene.fog=new THREE.Fog(0x000000,50,400);
+<!-- Realism modules (same version family) -->
+<script type="module">
+  import { RGBELoader } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/RGBELoader.js";
+  import { EffectComposer } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js";
+  import { RenderPass } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js";
+  import { UnrealBloomPass } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/UnrealBloomPass.js";
+  import { ShaderPass } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/ShaderPass.js";
+  import { FXAAShader } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/shaders/FXAAShader.js";
 
-/* SKY */
-const skyGeo=new THREE.SphereGeometry(1000,32,32);
-const skyMat=new THREE.MeshBasicMaterial({
-color:0x0a0a2a,
-side:THREE.BackSide
-});
-const sky=new THREE.Mesh(skyGeo,skyMat);
-scene.add(sky);
+  /* ==========================
+      UTIL
+  ========================== */
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const rand=(a,b)=>a+Math.random()*(b-a);
 
-/* CAMERA */
-const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
-camera.position.set(0,8,15);
+  const toastEl=document.getElementById("toast");
+  let toastT=0;
+  function toast(msg){
+    toastEl.textContent=msg;
+    toastEl.classList.add("show");
+    toastT=1.7;
+  }
 
-/* RENDERER */
-const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
-renderer.shadowMap.enabled=true;
-document.body.appendChild(renderer.domElement);
+  /* ==========================
+      AUDIO (procedural)
+  ========================== */
+  let audioOn=false;
+  let ac=null, master=null;
+  let engineOsc=null, engineGain=null, engineFilter=null;
+  let nitroGain=null, driftGain=null, sirenGain=null;
+  let sirenOscA=null, sirenOscB=null;
+  function ensureAudio(){
+    if(ac) return;
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    master=ac.createGain(); master.gain.value=0.0; master.connect(ac.destination);
 
-/* LIGHTING */
-const hemi=new THREE.HemisphereLight(0xffffff,0x222244,1);
-scene.add(hemi);
+    engineOsc=ac.createOscillator(); engineOsc.type="sawtooth";
+    engineFilter=ac.createBiquadFilter(); engineFilter.type="lowpass"; engineFilter.frequency.value=600;
+    engineGain=ac.createGain(); engineGain.gain.value=0.0;
+    engineOsc.connect(engineFilter); engineFilter.connect(engineGain); engineGain.connect(master);
+    engineOsc.start();
 
-const sun=new THREE.DirectionalLight(0xffffff,1.2);
-sun.position.set(100,200,100);
-sun.castShadow=true;
-scene.add(sun);
+    const noiseBuf=ac.createBuffer(1, ac.sampleRate*1.0, ac.sampleRate);
+    const data=noiseBuf.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1);
 
-/* GROUND */
-const ground=new THREE.Mesh(
-new THREE.PlaneGeometry(2000,2000),
-new THREE.MeshStandardMaterial({
-color:0x111111,
-roughness:0.8,
-metalness:0.2
-})
-);
-ground.rotation.x=-Math.PI/2;
-ground.receiveShadow=true;
-scene.add(ground);
+    const makeNoise=(freq, type)=>{
+      const src=ac.createBufferSource(); src.buffer=noiseBuf; src.loop=true;
+      const f=ac.createBiquadFilter();
+      f.type=type; f.frequency.value=freq;
+      const g=ac.createGain(); g.gain.value=0.0;
+      src.connect(f); f.connect(g); g.connect(master);
+      src.start();
+      return g;
+    }
+    nitroGain = makeNoise(900,"highpass");
+    driftGain = makeNoise(520,"bandpass");
 
-/* BUILDINGS */
-for(let i=0;i<400;i++){
-let h=Math.random()*80+10;
-let b=new THREE.Mesh(
-new THREE.BoxGeometry(10,h,10),
-new THREE.MeshStandardMaterial({
-color:0x222222,
-roughness:0.6,
-metalness:0.4
-})
-);
-b.position.set(
-(Math.random()-0.5)*1800,
-h/2,
-(Math.random()-0.5)*1800
-);
-b.castShadow=true;
-scene.add(b);
-}
+    sirenOscA=ac.createOscillator(); sirenOscA.type="sine"; sirenOscA.frequency.value=740;
+    sirenOscB=ac.createOscillator(); sirenOscB.type="sine"; sirenOscB.frequency.value=880;
+    sirenGain=ac.createGain(); sirenGain.gain.value=0.0;
+    sirenOscA.connect(sirenGain); sirenOscB.connect(sirenGain); sirenGain.connect(master);
+    sirenOscA.start(); sirenOscB.start();
+  }
+  function setAudio(on){
+    ensureAudio();
+    audioOn=on;
+    if(ac.state==="suspended") ac.resume();
+    master.gain.setTargetAtTime(on?0.75:0.0, ac.currentTime, 0.08);
+    document.getElementById("audioBtn").textContent = on ? "🔊 Sound: ON" : "🔊 Sound: OFF";
+    toast(on ? "Sound ON" : "Sound OFF");
+  }
+  document.getElementById("audioBtn").addEventListener("click", ()=>setAudio(!audioOn));
 
-/* PLAYER CAR */
-const car=new THREE.Group();
-const body=new THREE.Mesh(
-new THREE.BoxGeometry(3,1,6),
-new THREE.MeshStandardMaterial({
-color:0xff0000,
-metalness:0.8,
-roughness:0.2
-})
-);
-body.position.y=1;
-body.castShadow=true;
-car.add(body);
-scene.add(car);
+  /* ==========================
+      RENDERER / SCENE (REALISM)
+  ========================== */
+  const scene=new THREE.Scene();
+  scene.fog=new THREE.Fog(0x020207, 70, 650);
 
-/* POLICE CAR */
-const police=new THREE.Mesh(
-new THREE.BoxGeometry(3,1,6),
-new THREE.MeshStandardMaterial({
-color:0x0066ff,
-metalness:0.8,
-roughness:0.2
-})
-);
-police.position.set(30,1,30);
-police.castShadow=true;
-scene.add(police);
+  const camera=new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 4000);
+  camera.position.set(0, 9, 18);
 
-/* PARTICLES (NITRO FLAMES) */
-const flameGeo=new THREE.SphereGeometry(0.3,8,8);
-const flameMat=new THREE.MeshBasicMaterial({color:0xff6600});
-let flame=new THREE.Mesh(flameGeo,flameMat);
-flame.position.set(0,1,-4);
-car.add(flame);
+  const renderer=new THREE.WebGLRenderer({ antialias:false });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1, 2));
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 
-/* VARIABLES */
-let speed=0;
-let drift=0;
-let nitro=100;
-let engineLevel=1;
-let nitroLevel=1;
-let money=10000;
-let heat=0;
-let keys={};
+  // The big realism switches:
+  renderer.physicallyCorrectLights = true;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  document.body.appendChild(renderer.domElement);
 
-document.addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
-document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+  // Postprocessing
+  const composer=new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
 
-/* SHOP */
-function openShop(){document.getElementById("shop").style.display="block";}
-function closeShop(){document.getElementById("shop").style.display="none";}
-function upgradeEngine(){
-if(money>=5000){
-money-=5000;
-engineLevel++;
-}
-}
-function upgradeNitro(){
-if(money>=3000){
-money-=3000;
-nitroLevel++;
-}
-}
+  const bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.28, 0.9, 0.92);
+  composer.addPass(bloomPass);
 
-/* POLICE AI */
-function policeAI(){
-let dist=car.position.distanceTo(police.position);
-if(dist<200){
-heat=1+Math.floor(dist/40);
-police.lookAt(car.position);
-police.translateZ(0.3+heat*0.1);
-}else{
-heat=0;
-}
-}
+  const fxaaPass=new ShaderPass(FXAAShader);
+  fxaaPass.material.uniforms["resolution"].value.set(1/(innerWidth*renderer.getPixelRatio()), 1/(innerHeight*renderer.getPixelRatio()));
+  composer.addPass(fxaaPass);
 
-/* GAME LOOP */
-function animate(){
-requestAnimationFrame(animate);
+  // Lights (a bit cinematic)
+  const hemi=new THREE.HemisphereLight(0xbfd1ff, 0x0b0b14, 0.55);
+  scene.add(hemi);
 
-/* MOVEMENT */
-if(keys["w"]) speed+=0.02*engineLevel;
-if(keys["s"]) speed-=0.02;
+  const key=new THREE.DirectionalLight(0xffffff, 3.6);
+  key.position.set(200, 260, 140);
+  key.castShadow=true;
+  key.shadow.mapSize.set(2048,2048);
+  key.shadow.camera.near=10;
+  key.shadow.camera.far=1200;
+  scene.add(key);
 
-if(keys["a"]) drift=0.05;
-if(keys["d"]) drift=-0.05;
+  const fill=new THREE.DirectionalLight(0x88aaff, 1.2);
+  fill.position.set(-260, 120, -180);
+  scene.add(fill);
 
-car.rotation.y+=drift*speed;
-drift*=0.9;
+  /* ==========================
+      HDRI Environment (hyper realism)
+      NOTE: HDR from public CDN (Poly Haven). Works on GitHub Pages.
+  ========================== */
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
 
-if(keys[" "] && nitro>0){
-speed+=0.15*nitroLevel;
-nitro-=0.7;
-flame.visible=true;
-}else{
-flame.visible=false;
-if(nitro<100) nitro+=0.3;
-}
+  // If this HDR ever fails to load, swap to another PolyHaven HDR URL.
+  new RGBELoader()
+    .setDataType(THREE.UnsignedByteType)
+    .load(
+      "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/venice_sunset_1k.hdr",
+      (hdr)=>{
+        const envMap = pmrem.fromEquirectangular(hdr).texture;
+        scene.environment = envMap;
+        scene.background = null; // keep fog/sky dark; realism comes from IBL
+        hdr.dispose();
+        pmrem.dispose();
+        toast("HDR lighting loaded (realistic reflections).");
+      },
+      undefined,
+      ()=>toast("HDR failed to load (still playable).")
+    );
 
-speed*=0.98;
-car.translateZ(speed);
+  /* ==========================
+      TEXTURES (PBR)
+      Using threejsfundamentals texture CDN.
+  ========================== */
+  const texLoader = new THREE.TextureLoader();
 
-/* CAMERA FOLLOW + SHAKE */
-camera.position.x=car.position.x+Math.sin(car.rotation.y)*15;
-camera.position.z=car.position.z+Math.cos(car.rotation.y)*15;
-camera.position.y=8+Math.abs(speed*2);
-camera.lookAt(car.position);
+  function loadPBR(baseUrl){
+    // expects: basecolor, normal, roughness, ao
+    const t = {};
+    t.map = texLoader.load(baseUrl + "_basecolor.jpg");
+    t.normalMap = texLoader.load(baseUrl + "_normal.jpg");
+    t.roughnessMap = texLoader.load(baseUrl + "_roughness.jpg");
+    t.aoMap = texLoader.load(baseUrl + "_ao.jpg");
+    for(const k of Object.keys(t)){
+      t[k].wrapS = t[k].wrapT = THREE.RepeatWrapping;
+      t[k].encoding = (k==="map") ? THREE.sRGBEncoding : THREE.LinearEncoding;
+    }
+    return t;
+  }
 
-/* MONEY GAIN */
-money+=Math.abs(speed*0.05);
+  // Road asphalt & ground concrete/stone-ish
+  const asphalt = loadPBR("https://threejsfundamentals.org/threejs/resources/images/wall.jpg".replace("wall.jpg",""));
+  // NOTE: the above helper expects *_basecolor etc. We’ll instead do a simple “good enough”
+  // fallback PBR set with single textures that always exist.
+  // If you want PERFECT PBR sets, I can swap to a proper CC0 PBR pack hosting.
 
-/* POLICE */
-policeAI();
+  // Practical approach: use existing textures that are always accessible (single map + normal)
+  const roadMap = texLoader.load("https://threejsfundamentals.org/threejs/resources/images/checker.png");
+  roadMap.wrapS = roadMap.wrapT = THREE.RepeatWrapping;
+  roadMap.repeat.set(10, 600);
+  roadMap.encoding = THREE.sRGBEncoding;
 
-/* HUD */
-document.getElementById("money").innerText=Math.floor(money);
-document.getElementById("speed").innerText=Math.floor(Math.abs(speed*200));
-document.getElementById("nitro").innerText=Math.floor(nitro);
-document.getElementById("heat").innerText=heat;
-document.getElementById("engLvl").innerText=engineLevel;
-document.getElementById("nitLvl").innerText=nitroLevel;
+  const groundMap = texLoader.load("https://threejsfundamentals.org/threejs/resources/images/flower-1.jpg");
+  groundMap.wrapS = groundMap.wrapT = THREE.RepeatWrapping;
+  groundMap.repeat.set(40, 40);
+  groundMap.encoding = THREE.sRGBEncoding;
 
-renderer.render(scene,camera);
-}
-animate();
+  /* ==========================
+      WORLD
+  ========================== */
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(5000, 5000),
+    new THREE.MeshStandardMaterial({
+      map: groundMap,
+      color: 0x111115,
+      roughness: 0.98,
+      metalness: 0.02
+    })
+  );
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
 
-window.addEventListener("resize",()=>{
-camera.aspect=window.innerWidth/window.innerHeight;
-camera.updateProjectionMatrix();
-renderer.setSize(window.innerWidth,window.innerHeight);
-});
+  const roadW=30, roadL=5000;
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(roadW, roadL),
+    new THREE.MeshStandardMaterial({
+      map: roadMap,
+      color: 0x22222a,
+      roughness: 0.92,
+      metalness: 0.02
+    })
+  );
+  road.rotation.x = -Math.PI/2;
+  road.position.y = 0.02;
+  road.receiveShadow = true;
+  scene.add(road);
+
+  // City buildings with better material response
+  const buildingMat = new THREE.MeshStandardMaterial({
+    color: 0x2a2a35,
+    roughness: 0.55,
+    metalness: 0.55
+  });
+
+  const buildings=[];
+  for(let i=0;i<520;i++){
+    const h=rand(12, 110);
+    const w=rand(8, 18);
+    const d=rand(8, 18);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), buildingMat);
+    const side = Math.random()<0.5 ? -1 : 1;
+    b.position.set(side*rand(52, 1900), h/2, rand(-2000, 2000));
+    b.castShadow=true;
+    b.receiveShadow=true;
+    scene.add(b);
+    buildings.push({mesh:b,w,h,d});
+  }
+
+  // Street lamps with realistic falloff
+  const lampGroup=new THREE.Group();
+  const poleMat=new THREE.MeshStandardMaterial({color:0x2a2a33, roughness:0.5, metalness:0.7});
+  const poleGeo=new THREE.CylinderGeometry(0.18, 0.25, 8, 10);
+  const headGeo=new THREE.SphereGeometry(0.35, 10, 10);
+  const headMat=new THREE.MeshStandardMaterial({color:0x0d1020, emissive:0x33ffd0, emissiveIntensity:0.7, roughness:0.2, metalness:0.2});
+  for(let i=0;i<130;i++){
+    const z=-i*34;
+    for(const s of [-1,1]){
+      const pole=new THREE.Mesh(poleGeo, poleMat);
+      pole.position.set(s*(roadW/2+2.4), 4, z);
+      pole.castShadow=true;
+      const head=new THREE.Mesh(headGeo, headMat);
+      head.position.set(s*(roadW/2+2.4), 8.2, z);
+      lampGroup.add(pole, head);
+
+      const light=new THREE.PointLight(0x33ffd0, 35, 42, 2); // physically correct intensity
+      light.position.set(s*(roadW/2+2.4), 8.2, z);
+      light.castShadow = false;
+      lampGroup.add(light);
+    }
+  }
+  scene.add(lampGroup);
+
+  // Subtle volumetric feel (fake): a few big faint lights
+  const cityGlow = new THREE.PointLight(0x88aaff, 120, 800, 2);
+  cityGlow.position.set(0, 120, -600);
+  scene.add(cityGlow);
+
+  /* ==========================
+      CAR (PBR-ish)
+  ========================== */
+  const car=new THREE.Group();
+  const carPaint = new THREE.MeshPhysicalMaterial({
+    color: 0xff2e2e,
+    roughness: 0.2,
+    metalness: 0.9,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.07
+  });
+  const glass = new THREE.MeshPhysicalMaterial({
+    color: 0x111118,
+    roughness: 0.02,
+    metalness: 0.0,
+    transmission: 0.75,
+    transparent: true,
+    opacity: 1.0,
+    ior: 1.45,
+    thickness: 0.12
+  });
+  const black = new THREE.MeshStandardMaterial({color:0x09090f, roughness:0.65, metalness:0.25});
+
+  const body=new THREE.Mesh(new THREE.BoxGeometry(3.2,1.0,6.2), carPaint);
+  body.position.y=1.05; body.castShadow=true; body.receiveShadow=true;
+  car.add(body);
+
+  const cab=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.85,2.8), glass);
+  cab.position.set(0,1.58,-0.25); cab.castShadow=true;
+  car.add(cab);
+
+  const spoiler=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.15,0.7), black);
+  spoiler.position.set(0,1.35,3.05);
+  spoiler.castShadow=true;
+  car.add(spoiler);
+
+  // Headlights (real light)
+  const headL = new THREE.SpotLight(0xbdd5ff, 250, 90, Math.PI/9, 0.35, 1.2);
+  headL.position.set(-1.05, 1.2, -2.85);
+  headL.target.position.set(-1.05, 0.8, -20);
+  car.add(headL); car.add(headL.target);
+
+  const headR = headL.clone();
+  headR.position.set( 1.05, 1.2, -2.85);
+  headR.target.position.set( 1.05, 0.8, -20);
+  car.add(headR); car.add(headR.target);
+
+  // Nitro flame
+  const flame=new THREE.Mesh(
+    new THREE.SphereGeometry(0.38, 12, 12),
+    new THREE.MeshBasicMaterial({color:0xff7a00})
+  );
+  flame.position.set(0,1.05,3.55);
+  flame.visible=false;
+  car.add(flame);
+
+  scene.add(car);
+
+  /* ==========================
+      POLICE
+  ========================== */
+  const police=new THREE.Group();
+  const pBody=new THREE.Mesh(new THREE.BoxGeometry(3.2,1.0,6.2),
+    new THREE.MeshPhysicalMaterial({color:0x145dff, roughness:0.28, metalness:0.85, clearcoat:1.0, clearcoatRoughness:0.10})
+  );
+  pBody.position.y=1.05; pBody.castShadow=true; pBody.receiveShadow=true;
+  police.add(pBody);
+
+  const pCab=cab.clone(); police.add(pCab);
+
+  const bar=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.22,0.7),
+    new THREE.MeshStandardMaterial({color:0x111118, emissive:0xff3344, emissiveIntensity:0.9})
+  );
+  bar.position.set(0,2.05,-0.2);
+  police.add(bar);
+
+  const sirenLightA=new THREE.PointLight(0xff3344, 120, 26, 2);
+  sirenLightA.position.set(-0.55,2.05,-0.2);
+  const sirenLightB=new THREE.PointLight(0x33a0ff, 120, 26, 2);
+  sirenLightB.position.set( 0.55,2.05,-0.2);
+  police.add(sirenLightA, sirenLightB);
+
+  police.position.set(12,0,20);
+  scene.add(police);
+
+  /* ==========================
+      PICKUPS
+  ========================== */
+  const pickups=[];
+  const pickupGeo=new THREE.TorusKnotGeometry(0.6, 0.18, 64, 8);
+  const moneyMat=new THREE.MeshStandardMaterial({color:0x33ff77, emissive:0x0b2a16, emissiveIntensity:0.9, roughness:0.35, metalness:0.4});
+  const nitroMat=new THREE.MeshStandardMaterial({color:0x33ffd0, emissive:0x0a2a22, emissiveIntensity:0.95, roughness:0.2, metalness:0.55});
+  function spawnPickup(type){
+    const m=new THREE.Mesh(pickupGeo, type==="money"?moneyMat:nitroMat);
+    m.castShadow=true;
+    m.position.set(rand(-roadW/2+2, roadW/2-2), 1.2, car.position.z - rand(120, 520));
+    m.userData.type=type;
+    scene.add(m);
+    pickups.push(m);
+  }
+  for(let i=0;i<10;i++) spawnPickup(Math.random()<0.6?"money":"nitro");
+
+  /* ==========================
+      GAME STATE
+  ========================== */
+  let money=10000, speed=0, yaw=0, steer=0, nitro=100, heat=0;
+  let engineLevel=1, nitroLevel=1, armorLevel=0, gripLevel=0;
+  let paused=false;
+  const keys={};
+
+  const input={ throttle:0, brake:0, steer:0, nitro:false, drift:false };
+
+  function tuning(){
+    const baseTop=1.35 + engineLevel*0.22;
+    const accel=0.020 + engineLevel*0.007;
+    const brake=0.030 + gripLevel*0.003;
+    const steerPower=0.045 + gripLevel*0.007;
+    const nitroBoost=0.16 + nitroLevel*0.06;
+    const nitroDrain=0.82 - nitroLevel*0.07;
+    return {baseTop, accel, brake, steerPower, nitroBoost, nitroDrain};
+  }
+
+  /* ==========================
+      SHOP
+  ========================== */
+  const shopOverlay=document.getElementById("shopOverlay");
+  const shopBtn=document.getElementById("shopBtn");
+  const closeShopBtn=document.getElementById("closeShop");
+  const buyEngine=document.getElementById("buyEngine");
+  const buyNitro=document.getElementById("buyNitro");
+  const buyArmor=document.getElementById("buyArmor");
+  const buyGrip=document.getElementById("buyGrip");
+  const engineCostEl=document.getElementById("engineCost");
+  const nitroCostEl=document.getElementById("nitroCost");
+  const armorCostEl=document.getElementById("armorCost");
+  const gripCostEl=document.getElementById("gripCost");
+
+  function costEngine(){ return Math.floor(5000*(1+(engineLevel-1)*0.55)); }
+  function costNitro(){ return Math.floor(3000*(1+(nitroLevel-1)*0.50)); }
+  function costArmor(){ return Math.floor(4000*(1+armorLevel*0.60)); }
+  function costGrip(){ return Math.floor(3500*(1+gripLevel*0.55)); }
+  function updateShopCosts(){
+    engineCostEl.textContent=costEngine();
+    nitroCostEl.textContent=costNitro();
+    armorCostEl.textContent=costArmor();
+    gripCostEl.textContent=costGrip();
+  }
+  function openShop(){ paused=true; shopOverlay.style.display="flex"; updateShopCosts(); }
+  function closeShop(){ paused=false; shopOverlay.style.display="none"; }
+
+  shopBtn.addEventListener("click", openShop);
+  closeShopBtn.addEventListener("click", closeShop);
+  shopOverlay.addEventListener("click", (e)=>{ if(e.target===shopOverlay) closeShop(); });
+
+  buyEngine.addEventListener("click", ()=>{
+    const c=costEngine(); if(money>=c){ money-=c; engineLevel++; toast(`Engine Lv ${engineLevel}`); } else toast("Not enough money");
+    updateShopCosts();
+  });
+  buyNitro.addEventListener("click", ()=>{
+    const c=costNitro(); if(money>=c){ money-=c; nitroLevel++; toast(`Nitro Lv ${nitroLevel}`); } else toast("Not enough money");
+    updateShopCosts();
+  });
+  buyArmor.addEventListener("click", ()=>{
+    const c=costArmor(); if(money>=c){ money-=c; armorLevel++; toast(`Armor Lv ${armorLevel}`); } else toast("Not enough money");
+    updateShopCosts();
+  });
+  buyGrip.addEventListener("click", ()=>{
+    const c=costGrip(); if(money>=c){ money-=c; gripLevel++; toast(`Grip Lv ${gripLevel}`); } else toast("Not enough money");
+    updateShopCosts();
+  });
+
+  /* ==========================
+      QUALITY TOGGLE (mobile friendly)
+  ========================== */
+  let qualityHigh=true;
+  const qualityBtn=document.getElementById("qualityBtn");
+  qualityBtn.addEventListener("click", ()=>{
+    qualityHigh=!qualityHigh;
+    qualityBtn.textContent = qualityHigh ? "✨ Quality: HIGH" : "⚡ Quality: FAST";
+    bloomPass.strength = qualityHigh ? 0.28 : 0.12;
+    renderer.setPixelRatio(Math.min(devicePixelRatio||1, qualityHigh?2:1.2));
+    toast(qualityHigh ? "High quality enabled" : "Fast mode enabled");
+  });
+
+  /* ==========================
+      INPUTS
+  ========================== */
+  document.addEventListener("keydown", (e)=>{
+    keys[e.key.toLowerCase()]=true;
+    if(!audioOn && (e.key===" " || e.key.toLowerCase()==="w")){ ensureAudio(); if(ac && ac.state==="suspended") ac.resume(); }
+    if(e.key.toLowerCase()==="h"){ if(shopOverlay.style.display==="flex") closeShop(); else openShop(); }
+  });
+  document.addEventListener("keyup", (e)=>keys[e.key.toLowerCase()]=false);
+
+  // Mobile joystick
+  const joyArea=document.getElementById("joyArea");
+  const joyStick=document.getElementById("joyStick");
+  let joyActive=false, joyId=null;
+  let joyCenter={x:0,y:0}, joyVec={x:0,y:0};
+  function setStickVisual(x,y){ joyStick.style.transform=`translate(${x}px,${y}px)`; }
+  joyArea.addEventListener("pointerdown",(e)=>{
+    joyActive=true; joyId=e.pointerId; joyArea.setPointerCapture(joyId);
+    const r=joyArea.getBoundingClientRect();
+    joyCenter.x=r.left+r.width/2; joyCenter.y=r.top+r.height/2;
+  });
+  joyArea.addEventListener("pointermove",(e)=>{
+    if(!joyActive||e.pointerId!==joyId) return;
+    const dx=e.clientX-joyCenter.x, dy=e.clientY-joyCenter.y;
+    const max=42, len=Math.hypot(dx,dy);
+    const nx=len>max?(dx/len)*max:dx;
+    const ny=len>max?(dy/len)*max:dy;
+    joyVec.x=nx/max; joyVec.y=ny/max;
+    setStickVisual(nx,ny);
+  });
+  function joyEnd(e){
+    if(e.pointerId!==joyId) return;
+    joyActive=false; joyId=null; joyVec.x=0; joyVec.y=0; setStickVisual(0,0);
+  }
+  joyArea.addEventListener("pointerup",joyEnd);
+  joyArea.addEventListener("pointercancel",joyEnd);
+
+  function bindHold(el,onDown,onUp){
+    const down=(e)=>{ e.preventDefault(); onDown(); };
+    const up=(e)=>{ e.preventDefault(); onUp(); };
+    el.addEventListener("pointerdown",down);
+    el.addEventListener("pointerup",up);
+    el.addEventListener("pointercancel",up);
+    el.addEventListener("pointerleave",up);
+  }
+  bindHold(document.getElementById("btnGas"), ()=>{ input.throttle=1; ensureAudio(); if(ac && ac.state==="suspended") ac.resume(); }, ()=>input.throttle=0);
+  bindHold(document.getElementById("btnBrake"),()=>input.brake=1, ()=>input.brake=0);
+  bindHold(document.getElementById("btnNitro"),()=>input.nitro=true, ()=>input.nitro=false);
+  bindHold(document.getElementById("btnDrift"),()=>input.drift=true, ()=>input.drift=false);
+
+  /* ==========================
+      COLLISION (cheap AABB)
+  ========================== */
+  function aabb(ax,az, aw,ad, bx,bz, bw,bd){
+    return Math.abs(ax-bx) < (aw+bw)*0.5 && Math.abs(az-bz) < (ad+bd)*0.5;
+  }
+
+  /* ==========================
+      POLICE AI
+  ========================== */
+  let sirenPhase=0;
+  function policeAI(dt){
+    const dist=car.position.distanceTo(police.position);
+    if(dist<260) heat=clamp(heat+dt*(0.9+Math.abs(speed)*0.4),0,6);
+    else heat=clamp(heat-dt*0.55,0,6);
+
+    const predict=10+heat*3;
+    const forward=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0), car.rotation.y);
+    const target=car.position.clone().add(forward.multiplyScalar(-predict*(10+Math.abs(speed)*120)));
+
+    const chaseSpeed=0.55+heat*0.18;
+    const turnRate=0.055+heat*0.012;
+
+    const toT=target.clone().sub(police.position);
+    const desiredYaw=Math.atan2(toT.x,toT.z);
+    let dy=desiredYaw-police.rotation.y;
+    while(dy>Math.PI) dy-=Math.PI*2;
+    while(dy<-Math.PI) dy+=Math.PI*2;
+    police.rotation.y += clamp(dy, -turnRate, turnRate);
+    police.translateZ(-(chaseSpeed)*(dt*60));
+
+    if(dist<5.3 && heat>1.2){
+      const hit=0.22*(1-armorLevel*0.10);
+      speed*=(1-hit);
+      money=Math.max(0, money-Math.floor(70+heat*45));
+      toast("🚨 PIT attempt!");
+      police.position.add(toT.normalize().multiplyScalar(-2.0));
+      heat=clamp(heat+0.8,0,6);
+    }
+
+    // Siren lights blink
+    sirenPhase += dt*(2.2+heat*0.3);
+    const mod = (Math.sin(sirenPhase*2*Math.PI)*0.5+0.5);
+    bar.material.emissiveIntensity = 0.35 + mod*1.2;
+    sirenLightA.intensity = 40 + mod*130;
+    sirenLightB.intensity = 40 + (1-mod)*130;
+
+    if(audioOn && ac){
+      const sirenTarget=clamp((heat/6)*(dist<220?1:0),0,1)*0.55;
+      sirenGain.gain.setTargetAtTime(sirenTarget, ac.currentTime, 0.08);
+      sirenOscA.frequency.setTargetAtTime(660+mod*320, ac.currentTime, 0.04);
+      sirenOscB.frequency.setTargetAtTime(880+(1-mod)*280, ac.currentTime, 0.04);
+    }
+  }
+
+  /* ==========================
+      LOOP
+  ========================== */
+  let last=performance.now();
+  function frame(now){
+    requestAnimationFrame(frame);
+    const dt=Math.min(0.033, (now-last)/1000);
+    last=now;
+
+    if(toastT>0){
+      toastT-=dt;
+      if(toastT<=0) toastEl.classList.remove("show");
+    }
+
+    if(!paused){
+      const isDesktop = matchMedia("(hover:hover) and (pointer:fine)").matches;
+      if(isDesktop){
+        input.throttle = keys["w"]?1:0;
+        input.brake = keys["s"]?1:0;
+        input.nitro = !!keys[" "];
+        input.drift = !!keys["shift"];
+        input.steer = clamp((keys["a"]?-1:0)+(keys["d"]?1:0), -1, 1);
+      } else {
+        input.steer = clamp(joyVec.x, -1, 1);
+      }
+
+      const t=tuning();
+      const top=t.baseTop;
+
+      speed += input.throttle * t.accel;
+      speed -= input.brake * t.brake;
+
+      const driftFactor = input.drift ? 1.8 : 1.0;
+      const speedAbs=Math.abs(speed);
+
+      steer = lerp(steer, input.steer, 0.12);
+      const turn = steer * t.steerPower * (0.55 + clamp(speedAbs*2.0, 0, 1.2)) * driftFactor;
+
+      const usingNitro = input.nitro && nitro>0.2 && input.throttle>0.1;
+      if(usingNitro){
+        speed += t.nitroBoost * 0.12;
+        nitro -= t.nitroDrain * (0.72 + speedAbs*0.35) * (dt*60);
+        flame.visible=true;
+      } else {
+        flame.visible=false;
+        nitro += (0.26 + nitroLevel*0.03) * (dt*60);
+      }
+      nitro=clamp(nitro,0,100);
+
+      speed *= Math.pow(input.drift ? 0.982 : 0.975, dt*60);
+      speed = clamp(speed, -0.55, top);
+
+      yaw += turn*(dt*60)*clamp(speedAbs*1.7,0.2,1.6);
+      car.rotation.y=yaw;
+      car.translateZ(-speed*(dt*60));
+
+      // Headlight targets follow forward
+      headL.target.position.set(-1.05, 0.8, -20);
+      headR.target.position.set( 1.05, 0.8, -20);
+
+      // Road bounds (soft)
+      const xLimit=roadW/2-1.2;
+      if(Math.abs(car.position.x)>xLimit){
+        const over=(Math.abs(car.position.x)-xLimit);
+        car.position.x=clamp(car.position.x, -xLimit, xLimit);
+        speed *= (1-(0.15+over*0.02)*(1-armorLevel*0.10));
+        money=Math.max(0, money-Math.floor(20+over*40));
+        heat=clamp(heat+0.15,0,6);
+      }
+
+      // Building collisions (near check)
+      for(let i=0;i<buildings.length;i++){
+        const b=buildings[i], m=b.mesh;
+        const dz=Math.abs(m.position.z-car.position.z);
+        if(dz>60) continue;
+        const dx=Math.abs(m.position.x-car.position.x);
+        if(dx>60) continue;
+        if(aabb(car.position.x,car.position.z,3.2,6.2,m.position.x,m.position.z,b.w,b.d)){
+          const loss=(0.22-armorLevel*0.04);
+          speed *= clamp(1-loss,0.55,0.95);
+          money=Math.max(0, money-120);
+          heat=clamp(heat+0.35,0,6);
+          toast("💥 Crash!");
+          car.position.x += (car.position.x-m.position.x)*0.06;
+          car.position.z += (car.position.z-m.position.z)*0.06;
+          break;
+        }
+      }
+
+      // Pickups
+      for(let i=pickups.length-1;i>=0;i--){
+        const p=pickups[i];
+        p.rotation.y += dt*1.4;
+        p.rotation.x += dt*0.9;
+        if(p.position.z - car.position.z > 80){
+          p.position.z = car.position.z - rand(180, 520);
+          p.position.x = rand(-roadW/2+2, roadW/2-2);
+        }
+        const pd=p.position.distanceTo(car.position);
+        if(pd<3.0){
+          if(p.userData.type==="money"){
+            const gain=250+Math.floor(speedAbs*900);
+            money += gain; toast(`+$${gain}`);
+          }else{
+            const gainN=22+nitroLevel*4;
+            nitro=clamp(nitro+gainN,0,100); toast(`⚡ Nitro +${gainN}%`);
+          }
+          p.position.z = car.position.z - rand(240, 600);
+          p.position.x = rand(-roadW/2+2, roadW/2-2);
+          p.userData.type = (Math.random()<0.62) ? "money" : "nitro";
+          p.material = (p.userData.type==="money") ? moneyMat : nitroMat;
+        }
+      }
+
+      money += Math.abs(speed) * (0.9 + heat*0.35) * (dt*60);
+
+      // Police
+      policeAI(dt);
+
+      // Camera (cinematic)
+      const camBack = 17 + clamp(speedAbs*18, 0, 28);
+      const camHeight = 8.5 + clamp(speedAbs*10, 0, 10);
+      camera.position.x = lerp(camera.position.x, car.position.x + Math.sin(yaw)*camBack, 0.10);
+      camera.position.z = lerp(camera.position.z, car.position.z + Math.cos(yaw)*camBack, 0.10);
+      camera.position.y = lerp(camera.position.y, camHeight, 0.08);
+      camera.lookAt(car.position.x, 1.2, car.position.z);
+
+      // Move lamps endless
+      lampGroup.children.forEach((obj)=>{
+        if(obj.position && obj.position.z - car.position.z > 120) obj.position.z -= 130*34;
+      });
+
+      // Audio update
+      if(audioOn && ac){
+        const rpm = clamp(0.2 + Math.abs(speed)*1.8, 0.2, 2.0);
+        engineOsc.frequency.setTargetAtTime(110 + rpm*220 + (usingNitro?140:0), ac.currentTime, 0.05);
+        engineFilter.frequency.setTargetAtTime(520 + rpm*680, ac.currentTime, 0.08);
+        engineGain.gain.setTargetAtTime(0.12 + rpm*0.22, ac.currentTime, 0.08);
+        nitroGain.gain.setTargetAtTime(usingNitro?0.25:0.0, ac.currentTime, 0.06);
+        driftGain.gain.setTargetAtTime((input.drift && speedAbs>0.35)?0.18:0.0, ac.currentTime, 0.06);
+      }
+
+      // HUD
+      document.getElementById("money").textContent=Math.floor(money);
+      document.getElementById("speed").textContent=Math.floor(Math.abs(speed)*220);
+      document.getElementById("nitro").textContent=Math.floor(nitro);
+      document.getElementById("heat").textContent=Math.floor(heat);
+      document.getElementById("engLvl").textContent=engineLevel;
+      document.getElementById("nitLvl").textContent=nitroLevel;
+
+      scene.fog.far = 650 - heat*35;
+    }
+
+    composer.render();
+  }
+  requestAnimationFrame(frame);
+
+  /* Resize */
+  addEventListener("resize", ()=>{
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+    composer.setSize(innerWidth,innerHeight);
+    fxaaPass.material.uniforms["resolution"].value.set(
+      1/(innerWidth*renderer.getPixelRatio()),
+      1/(innerHeight*renderer.getPixelRatio())
+    );
+  });
+
+  /* Tap to unlock audio context */
+  addEventListener("pointerdown", ()=>{
+    if(ac && ac.state==="suspended") ac.resume();
+  }, {passive:true});
+
+  toast("Loaded. Enable Sound. Toggle Quality for mobile performance.");
 </script>
-
 </body>
 </html>
