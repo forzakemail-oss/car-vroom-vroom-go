@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Car Empire Ultimate</title>
+<style>
+body { margin:0; overflow:hidden; background:black; font-family:Arial;}
+#hud {
+  position:absolute;
+  top:15px;
+  left:15px;
+  color:white;
+  font-size:16px;
+  background:rgba(0,0,0,0.5);
+  padding:10px;
+  border-radius:10px;
+}
+#shopPanel {
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#111;
+  padding:20px;
+  color:white;
+  display:none;
+  border-radius:15px;
+}
+button {
+  padding:8px 15px;
+  margin:5px;
+  background:#ff3333;
+  border:none;
+  color:white;
+  cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<div id="hud">
+Money: $<span id="money">10000</span><br>
+Speed: <span id="speed">0</span><br>
+Nitro: <span id="nitro">100</span>%<br>
+Heat: <span id="heat">0</span><br>
+<button onclick="openShop()">Open Shop</button>
+</div>
+
+<div id="shopPanel">
+<h2>Car Shop</h2>
+<button onclick="upgradeEngine()">Upgrade Engine ($5000)</button>
+<button onclick="upgradeNitro()">Upgrade Nitro ($3000)</button>
+<button onclick="closeShop()">Close</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x000000, 50, 300);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2000);
+camera.position.set(0,8,15);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+/* LIGHTING */
+const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(0xffffff, 1);
+sun.position.set(50,100,50);
+sun.castShadow = true;
+scene.add(sun);
+
+/* ROAD */
+const road = new THREE.Mesh(
+  new THREE.PlaneGeometry(2000,2000),
+  new THREE.MeshStandardMaterial({color:0x222222})
+);
+road.rotation.x = -Math.PI/2;
+road.receiveShadow = true;
+scene.add(road);
+
+/* BUILDINGS */
+for(let i=0;i<300;i++){
+  const h = Math.random()*60+10;
+  const b = new THREE.Mesh(
+    new THREE.BoxGeometry(10,h,10),
+    new THREE.MeshStandardMaterial({color:0x333333})
+  );
+  b.position.set(
+    (Math.random()-0.5)*1500,
+    h/2,
+    (Math.random()-0.5)*1500
+  );
+  b.castShadow=true;
+  scene.add(b);
+}
+
+/* PLAYER CAR */
+const car = new THREE.Group();
+const body = new THREE.Mesh(
+  new THREE.BoxGeometry(3,1,6),
+  new THREE.MeshStandardMaterial({color:0xff0000})
+);
+body.position.y = 1;
+car.add(body);
+scene.add(car);
+
+/* POLICE */
+const police = new THREE.Mesh(
+  new THREE.BoxGeometry(3,1,6),
+  new THREE.MeshStandardMaterial({color:0x0000ff})
+);
+police.position.set(20,1,20);
+scene.add(police);
+
+/* GAME VARIABLES */
+let speed = 0;
+let engineLevel = 1;
+let nitroLevel = 1;
+let nitro = 100;
+let money = 10000;
+let heat = 0;
+
+let keys = {};
+document.addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+/* SHOP */
+function openShop(){ document.getElementById("shopPanel").style.display="block"; }
+function closeShop(){ document.getElementById("shopPanel").style.display="none"; }
+
+function upgradeEngine(){
+  if(money>=5000){
+    money-=5000;
+    engineLevel++;
+    alert("Engine Level "+engineLevel);
+  }
+}
+function upgradeNitro(){
+  if(money>=3000){
+    money-=3000;
+    nitroLevel++;
+    alert("Nitro Level "+nitroLevel);
+  }
+}
+
+/* POLICE AI */
+function policeAI(){
+  const distance = car.position.distanceTo(police.position);
+  if(distance<100){
+    heat=5;
+    police.lookAt(car.position);
+    police.translateZ(0.4);
+  } else {
+    heat=0;
+  }
+}
+
+/* GAME LOOP */
+function animate(){
+  requestAnimationFrame(animate);
+
+  if(keys["w"]) speed += 0.02*engineLevel;
+  if(keys["s"]) speed -= 0.02;
+
+  if(keys[" "] && nitro>0){
+    speed += 0.1*nitroLevel;
+    nitro -= 0.5;
+  } else if(nitro<100){
+    nitro += 0.2;
+  }
+
+  speed*=0.98;
+
+  if(keys["a"]) car.rotation.y+=0.04;
+  if(keys["d"]) car.rotation.y-=0.04;
+
+  car.translateZ(speed);
+
+  camera.position.x = car.position.x + Math.sin(car.rotation.y)*15;
+  camera.position.z = car.position.z + Math.cos(car.rotation.y)*15;
+  camera.lookAt(car.position);
+
+  policeAI();
+
+  document.getElementById("money").innerText = money;
+  document.getElementById("speed").innerText = Math.abs(speed*200).toFixed(0);
+  document.getElementById("nitro").innerText = nitro.toFixed(0);
+  document.getElementById("heat").innerText = heat;
+
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener("resize",()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+</script>
+
+</body>
+</html>
